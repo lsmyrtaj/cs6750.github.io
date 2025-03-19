@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Springfield to Tysons Routes</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .app-container {
+            max-width: 400px;
+            margin: 20px auto;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 10px;
+        }
+        #slider-container {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #route-slider {
+            width: 80%;
+        }
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 80%;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .eta-bar {
+            background: #333;
+            color: white;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 0 0 10px 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <h3>Route Selector: Springfield to Tysons</h3>
+        <div id="map"></div>
+
+        <div id="slider-container">
+            <label for="route-slider">Select Route:</label>
+            <input type="range" id="route-slider" min="0" max="2" step="1" value="0">
+            <div class="slider-labels">
+                <span id="label-0">No tolls</span>
+                <span id="label-1">$8.00</span>
+                <span id="label-2">$16.50</span>
+            </div>
+        </div>
+
+        <div class="eta-bar" id="eta-bar">
+            📏 Distance: -- mi | ⏳ Time: -- min | 🕒 Arrival: --:--
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <script>
+        // Initialize the map closer to Springfield, VA (zoomed in)
+        var map = L.map('map').setView([38.7893, -77.1872], 14); // Zoomed in closer
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Define start and end points
+        var startPoint = L.latLng(38.7893, -77.1872); // Springfield, VA
+        var endPoint = L.latLng(38.9187, -77.2311); // Tysons, VA
+
+        // Define routes with actual road following
+        var routes = [
+            {
+                name: "No Tolls (Local Roads)",
+                waypoints: [
+                    startPoint,
+                    L.latLng(38.8072, -77.1928), // Backlick Rd
+                    L.latLng(38.8321, -77.2020), // VA-236 W/Main St
+                    endPoint
+                ],
+                distance: 16,
+                time: 35,
+                toll: "No tolls",
+                color: "blue"
+            },
+            {
+                name: "$8.00 (Mixed Route)",
+                waypoints: [
+                    startPoint,
+                    L.latLng(38.7904, -77.1835), // I-95 N entrance
+                    L.latLng(38.8760, -77.2111), // I-495 N
+                    endPoint
+                ],
+                distance: 14,
+                time: 25,
+                toll: "$8.00",
+                color: "green"
+            },
+            {
+                name: "$16.50 (Highway Route)",
+                waypoints: [
+                    startPoint,
+                    L.latLng(38.8003, -77.2127), // I-95 Express Lanes
+                    L.latLng(38.8850, -77.1966), // I-495 Express Lanes
+                    endPoint
+                ],
+                distance: 13,
+                time: 18,
+                toll: "$16.50",
+                color: "red"
+            }
+        ];
+
+        var control = L.Routing.control({
+            waypoints: routes[0].waypoints,
+            router: L.Routing.osrmv1({
+                serviceUrl: "https://router.project-osrm.org/route/v1"
+            }),
+            lineOptions: {
+                styles: [{ color: routes[0].color, weight: 5, opacity: 1 }]
+            },
+            createMarker: function () { return null; } // Hide default markers
+        }).addTo(map);
+
+        // Function to update route and ETA
+        function updateRoute(index) {
+            var route = routes[index];
+
+            // Update route waypoints
+            control.setWaypoints(route.waypoints);
+            control.getPlan().setWaypoints(route.waypoints);
+
+            // Change route color dynamically
+            control.options.lineOptions.styles = [{ color: route.color, weight: 5, opacity: 1 }];
+
+            // Calculate estimated arrival time (assume leaving at 12:00 PM)
+            var startTime = new Date();
+            startTime.setHours(12, 0, 0);
+            var arrivalTime = new Date(startTime.getTime() + route.time * 60000);
+            var arrivalStr = arrivalTime.getHours() + ":" + (arrivalTime.getMinutes().toString().padStart(2, '0'));
+
+            // Update ETA bar
+            document.getElementById("eta-bar").innerHTML =
+                `📏 Distance: ${route.distance} mi | ⏳ Time: ${route.time} min | 🕒 Arrival: ${arrivalStr} | 🚗 Toll: ${route.toll}`;
+        }
+
+        // Initial route update
+        updateRoute(0);
+
+        // Update route on slider change
+        document.getElementById('route-slider').addEventListener('input', function () {
+            var index = parseInt(this.value);
+            updateRoute(index);
+        });
+
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Springfield to Tysons Routes</title>
+    <title>Springfield to Destination</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     <style>
@@ -22,7 +22,7 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         #destination-input {
-            width: 80%;
+            width: 70%;
             padding: 8px;
             font-size: 14px;
             margin-bottom: 10px;
@@ -67,6 +67,7 @@
         
         <!-- Destination Input Box -->
         <input type="text" id="destination-input" placeholder="Enter your destination..." />
+        <button onclick="searchDestination()">Go</button>
 
         <div id="map"></div>
 
@@ -81,110 +82,96 @@
         </div>
 
         <div class="eta-bar" id="eta-bar">
-            📏 Distance: -- mi | ⏳ Time: -- min | 🕒 Arrival: --:--
+            🚗 Toll: No tolls | 📏 Distance: 12 mi | ⏳ Time: 22 min | 🕒 Arrival: 12:22 PM
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
     <script>
-        // Initialize the map closer to Springfield, VA
-        var map = L.map('map').setView([38.7893, -77.1872], 15);
+        var map = L.map('map').setView([38.7893, -77.1872], 14);
 
-        // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Define start and end points
-        var startPoint = L.latLng(38.7893, -77.1872); // Springfield, VA
-        var endPoint = L.latLng(38.9187, -77.2311); // Tysons, VA
+        var startPoint = L.latLng(38.7893, -77.1872);
+        var endPoint = L.latLng(38.9187, -77.2311);
 
-        // Define routes with actual road following
-        var routes = [
-            {
-                name: "No Tolls (Local Roads)",
-                waypoints: [
-                    startPoint,
-                    L.latLng(38.8072, -77.1928), // Backlick Rd
-                    L.latLng(38.8321, -77.2020), // VA-236 W/Main St
-                    endPoint
-                ],
-                distance: 16,
-                time: 35,
-                toll: "No tolls",
-                color: "blue"
-            },
-            {
-                name: "$8.00 (Mixed Route)",
-                waypoints: [
-                    startPoint,
-                    L.latLng(38.7904, -77.1835), // I-95 N entrance
-                    L.latLng(38.8760, -77.2111), // I-495 N
-                    endPoint
-                ],
-                distance: 14,
-                time: 25,
-                toll: "$8.00",
-                color: "green"
-            },
-            {
-                name: "$16.50 (Highway Route)",
-                waypoints: [
-                    startPoint,
-                    L.latLng(38.8003, -77.2127), // I-95 Express Lanes
-                    L.latLng(38.8850, -77.1966), // I-495 Express Lanes
-                    endPoint
-                ],
-                distance: 13,
-                time: 18,
-                toll: "$16.50",
-                color: "red"
-            }
+        // Add draggable marker for the start location
+        var startMarker = L.marker(startPoint, { draggable: true }).addTo(map);
+
+        var routeOptions = [
+            { name: "No Tolls", color: "blue", toll: "No tolls", distance: "12 mi", time: "22 min", arrival: "12:22 PM" },
+            { name: "$8.00", color: "green", toll: "$8.00", distance: "10 mi", time: "18 min", arrival: "12:18 PM" },
+            { name: "$16.50", color: "red", toll: "$16.50", distance: "8 mi", time: "16 min", arrival: "12:16 PM" }
         ];
 
         var control = L.Routing.control({
-            waypoints: routes[0].waypoints,
+            waypoints: [startPoint, getRandomWaypoint(), endPoint],
             router: L.Routing.osrmv1({
                 serviceUrl: "https://router.project-osrm.org/route/v1"
             }),
             lineOptions: {
-                styles: [{ color: routes[0].color, weight: 5, opacity: 1 }]
+                styles: [{ color: routeOptions[0].color, weight: 5, opacity: 1 }]
             },
-            createMarker: function () { return null; } // Hide default markers
+            createMarker: function () { return null; }
         }).addTo(map);
 
-        // Function to update route and ETA
-        function updateRoute(index) {
-            var route = routes[index];
-
-            // Update route waypoints
-            control.setWaypoints(route.waypoints);
-            control.getPlan().setWaypoints(route.waypoints);
-
-            // Change route color dynamically
-            control.options.lineOptions.styles = [{ color: route.color, weight: 5, opacity: 1 }];
-
-            // Calculate estimated arrival time (assume leaving at 12:00 PM)
-            var startTime = new Date();
-            startTime.setHours(12, 0, 0);
-            var arrivalTime = new Date(startTime.getTime() + route.time * 60000);
-            var arrivalStr = arrivalTime.getHours() + ":" + (arrivalTime.getMinutes().toString().padStart(2, '0'));
-
-            // Update ETA bar
-            document.getElementById("eta-bar").innerHTML =
-                `📏 Distance: ${route.distance} mi | ⏳ Time: ${route.time} min | 🕒 Arrival: ${arrivalStr} | 🚗 Toll: ${route.toll}`;
+        function getRandomWaypoint() {
+            return L.latLng(
+                (Math.random() * (endPoint.lat - startPoint.lat)) + startPoint.lat,
+                (Math.random() * (endPoint.lng - startPoint.lng)) + startPoint.lng
+            );
         }
 
-        // Initial route update
-        updateRoute(0);
+        function updateRoute(index) {
+            var route = routeOptions[index];
 
-        // Update route on slider change
+            control.setWaypoints([startPoint, getRandomWaypoint(), endPoint]);
+
+            control.options.lineOptions.styles = [{ color: route.color, weight: 5, opacity: 1 }];
+
+            document.getElementById("eta-bar").innerHTML =
+                `🚗 Toll: ${route.toll} | 📏 Distance: ${route.distance} | ⏳ Time: ${route.time} | 🕒 Arrival: ${route.arrival}`;
+        }
+
         document.getElementById('route-slider').addEventListener('input', function () {
-            var index = parseInt(this.value);
-            updateRoute(index);
+            updateRoute(parseInt(this.value));
         });
 
+        function searchDestination() {
+            var destination = document.getElementById("destination-input").value;
+            if (!destination) {
+                alert("Please enter a destination.");
+                return;
+            }
+
+            var apiUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(destination)}`;
+
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        alert("Destination not found. Try a different address.");
+                        return;
+                    }
+
+                    endPoint = L.latLng(data[0].lat, data[0].lon);
+                    map.setView(endPoint, 13);
+
+                    updateRoute(0);
+                })
+                .catch(error => console.log("Error fetching destination:", error));
+        }
+
+        // Update route when start marker is dragged
+        startMarker.on("dragend", function (event) {
+            startPoint = event.target.getLatLng();
+            updateRoute(0);
+        });
+
+        updateRoute(0);
     </script>
 </body>
 </html>
